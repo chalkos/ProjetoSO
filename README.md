@@ -1,4 +1,11 @@
-# Projeto de Sistemas Operativos
+ /////////////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+////////////////                 Projecto de SO                    \\\\\\\\\\\\\\\\\\\\\
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\//////////////////////////////////////////////
 
-## Links úteis
-Enunciado do projeto: 
+# Links úteis
+
+Membros:
+Bruno Ferreira
+Cláudia Oliveira
+Luís Caseiro
+
