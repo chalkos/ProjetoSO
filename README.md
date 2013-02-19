@@ -1,4 +1,4 @@
-ProjetoSO
-=========
+# Projeto de Sistemas Operativos
 
-Projeto de SO
+## Links úteis
+Enunciado do projeto: 
