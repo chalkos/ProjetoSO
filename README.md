@@ -1,11 +1,12 @@
- /////////////////////////////////////////\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-////////////////                 Projecto de SO                    \\\\\\\\\\\\\\\\\\\\\
-\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\//////////////////////////////////////////////
+# Projeto de SO
 
-# Links úteis
+## Links úteis
+Enunciado do projeto: 
 
-Membros:
+### Membros:
 Bruno Ferreira
+
 Cláudia Oliveira
+
 Luís Caseiro
 
