@@ -6,6 +6,10 @@ Enunciado do projeto:
 ## Comandos git
 desenho: http://osteele.com/images/2008/git-transport.png
 
+status (ver o estado)
+
+    git status
+
 pull (obter a versao actual do código e juntá-la ao que já existe)
 
     git pull origin master
