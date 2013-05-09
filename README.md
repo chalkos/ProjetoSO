@@ -1,7 +1,7 @@
 # Projeto de SO
 
 ## Links úteis
-Enunciado do projeto: 
+Enunciado do projeto: https://dl.dropboxusercontent.com/s/m5n9wjiosrb09jr/tp-lei.pdf?dl=1
 
 ## Comandos git
 desenho: http://osteele.com/images/2008/git-transport.png
