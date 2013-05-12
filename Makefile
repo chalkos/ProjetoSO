@@ -68,6 +68,7 @@ clean: .clean-post
 
 .clean-post: .clean-impl
 # Add your post 'clean' code here...
+	cp stdinDebug dist/Debug/GNU-Linux-x86/
 
 
 # clobber

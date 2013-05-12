@@ -97,6 +97,10 @@ ${OBJECTDIR}/reduce.o: reduce.c
 	${RM} $@.d
 	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/reduce.o reduce.c
 
+: stdinDebug 
+	@echo Performing Custom Build Step
+	cp stdinDebug ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/
+
 # Subprojects
 .build-subprojects:
 
@@ -104,6 +108,7 @@ ${OBJECTDIR}/reduce.o: reduce.c
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r ${CND_BUILDDIR}/${CND_CONF}
 	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/mapreduce
+	${RM} 
 
 # Subprojects
 .clean-subprojects:

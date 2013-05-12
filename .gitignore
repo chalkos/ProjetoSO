@@ -17,3 +17,6 @@
 *.app
 /build/
 /dist/
+
+# Netbeans folders
+/nbproject/private/
