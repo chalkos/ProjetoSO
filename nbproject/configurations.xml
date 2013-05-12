@@ -4,6 +4,12 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>bool.h</itemPath>
+      <itemPath>erro.h</itemPath>
+      <itemPath>interpreter.h</itemPath>
+      <itemPath>map.h</itemPath>
+      <itemPath>profiler.h</itemPath>
+      <itemPath>reduce.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -12,7 +18,12 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>erro.c</itemPath>
+      <itemPath>interpreter.c</itemPath>
       <itemPath>main.c</itemPath>
+      <itemPath>map.c</itemPath>
+      <itemPath>profiler.c</itemPath>
+      <itemPath>reduce.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -34,8 +45,33 @@
         <compilerSet>default</compilerSet>
       </toolsSet>
       <compileType>
+        <linkerTool>
+          <output>${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/mapreduce</output>
+        </linkerTool>
       </compileType>
+      <item path="bool.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="erro.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="erro.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="interpreter.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="interpreter.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="map.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="map.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="profiler.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="profiler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="reduce.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="reduce.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">
@@ -57,7 +93,29 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
+      <item path="bool.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="erro.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="erro.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="interpreter.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="interpreter.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="map.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="map.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="profiler.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="profiler.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="reduce.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="reduce.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>
