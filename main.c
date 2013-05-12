@@ -16,7 +16,8 @@ int main(int argc, char** argv) {
         return (EXIT_FAILURE);
     }
     
-    printf("%s %s\n", argv[1], argv[2]);
+    printf("argumentos: %s %s\n", argv[1], argv[2]);
+    
     
     map(argv[1]);
     

@@ -20,3 +20,6 @@
 
 # Netbeans folders
 /nbproject/private/
+
+# Ficheiros temporários
+tmp_map*

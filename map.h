@@ -16,5 +16,8 @@ int map(char *comando);
  */
 int criarFicheiro(int nrFicheiro, int *fdResultante);
 
+
+int apagaFicheiros(int ultimoNr);
+
 #endif	/* MAP_H */
 
