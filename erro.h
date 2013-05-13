@@ -8,7 +8,8 @@
 typedef enum {
   err_sucesso = 0,
   err_outofmemory,
-  err_argumentoInvalido
+  err_argumentoInvalido,
+  err_naoFezOpen,
 } errorCode;
 
 // esta função deve ser chamada sempre da forma:

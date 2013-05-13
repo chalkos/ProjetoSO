@@ -25,10 +25,11 @@
 #include "interpreter.h"
 #include "bool.h"
 
-#define stdInBufferSize 200
+#define stdInBufferSize 65536 //64 Kb
 
 char stdInBuffer[stdInBufferSize];
 int stdInBufferPos = stdInBufferSize;
+int stdInBufferLidos = 0;
 
 int newStdin;
 
@@ -44,115 +45,127 @@ int map(char *comando){
     
     //criar uma cópia do stdin, para poder ler os dados do stdin 
     //à medida que vai sendo preciso (lazy)
-    newStdin = dup(0);
+    //newStdin = dup(0);
     
-    int emExecucao; //numero de ficheiros abertos
+    int i=0; //indice do pipe
     
-    int i=1, dummy;
+    char buffer[4096];
+    
+    int pOut[MAXCOM][2]; //pipes para receber dados do stdout dos comandos
+    bool todosPipesUsados = false;
+    
+    
     while(1){
-        if( criarFicheiro(i++, &dummy) == -1 )
+        if(lerLinha(buffer, 4096) != -1)
             break;
-        // ir criando ficheiros
-        // ir redireccionando fd
-        // fazendo forks
-        // execvp
         
-        // fechar o FD no pai
-        close(dummy);
+        if(todosPipesUsados){
+            setPipeLivre(&i);
+        }
+            
+        
+        pipe(pOut[i]);
+        
+        
+        // fazendo forks
+        if(fork()==0){
+            // fechar a saida do pipe no filho
+            close(pOut[i][0]);
+            // o stdout do filho passa a ser a entrada do pipe
+            dup2(pOut[i][1], 1);
+            // execvp
+            
+            
+            exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
+        }
+        
+        // fechar a entrada do pipe no pai
+        close(pOut[i][1]);
         
         // limitar para ter apenas alguns ficheiros em execucao (variavel "emExecucao")
         // arranjar maneira de receber a informação de volta (ter 1 pipe para cada)
+        
+        if(!todosPipesUsados && i==MAXCOM-1)
+            todosPipesUsados = true;
     }
     
 }
 
-int criarFicheiro(int nrFicheiro, int *fdResultante){
-    if(stdInBufferPos==-1){
+int setPipeLivre(int &i){
+    // vai fazer o wait, quando receber um wait, vai ver qual é o nr que ele retorna e mete isso no i
+    // também verifica se o processo filho terminou com erro
+    int resultado;
+    wait(&resultado);
+    
+    if(WIFEXITED(resultado)){
+        resultado = WEXITSTATUS(resultado);
+        // terminou 
+        if(resultado >= 0 && resultado < MAXCOM)
+            *i = resultado;
+    }else{
+        // cópia terminou com erro
+    }
+}
+
+int lerLinha(char *buffer, int bufferSize){
+    if(stdInBufferPos == -1)
         return -1;
-    }
-        
     
-    int i;
-    char nomeFicheiro[30];
-    sprintf(nomeFicheiro, "tmp_map%d", nrFicheiro);
+    int lidosParaBuffer = 0;
+    bool sair = false; //sai quando encontra um \n
     
-    // abrir um ficheiro para RW, se não existir é criado com permissoes 0660
-    // se existir é apagado (O_TRUNC)
-    if( (*fdResultante = open(nomeFicheiro, O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) ) == -1){
-        perror( "ouch: " );
-    }
-    
-    
-    while(1){
-    
-        // ler do stdin
-        if(stdInBufferPos>=stdInBufferSize){
-            
-            // se o stdin estiver vazio tambem nao precisa de escrever, apenas meter pos=-1 e fechar o ficheiro
-            if(read(newStdin, stdInBuffer, stdInBufferSize) <= 0){
+    while(!sair){
+        if(stdInBufferPos >= stdInBufferSize){
+            // se o stdin estiver vazio apenas meter pos=-1 e sair
+            if(( stdInBufferLidos = read(0, stdInBuffer, stdInBufferSize)) <= 0){
+                // se chegar aqui, significa que escreveu qualquer coisa para o buffer
+                // logo temos de terminar o buffer
+                buffer[lidosParaBuffer-1] = '\0';
+                
                 stdInBufferPos = -1;
-                close(*fdResultante);
                 break;
             }
             stdInBufferPos = 0;
         }
-
-        // verficar onde está o \n
-        for(i=stdInBufferPos; i<stdInBufferSize-1; i++)
-            if(stdInBuffer[i] == '\n' || stdInBuffer[i] == '\0'){
-                break;
-            }
         
-        i++;
-
-        // escrever tudo desde stdinbufferPos até e inclusive a posição i
-        write(*fdResultante, (char*)(stdInBuffer+stdInBufferPos), i-stdInBufferPos );
+        /*
+         * Copiar enquanto houver espaço no buffer
+         *      e enquanto a posição no stdinBuffer for menor que o tamanho do stdInBuffer
+         *      e enquanto a posição no stdinBuffer for menor que o nr de caracteres lidos do stdin
+         */
+        while( !sair && lidosParaBuffer < bufferSize && stdInBufferPos < stdInBufferSize && stdInBufferPos < stdInBufferLidos){
+            if(stdInBuffer[stdInBufferPos] == '\n'){
+                buffer[lidosParaBuffer++] = '\0';
+                sair = true;
+            }else
+                buffer[lidosParaBuffer++] = stdInBuffer[stdInBufferPos];
+            
+            stdInBufferPos++;
+        }
         
-        if(stdInBuffer[i] == '\0')
-            stdInBufferPos = -1; // parar de criar ficheiros porque o stdin está vazio
-        else
-            stdInBufferPos = i;
         
-        if(stdInBufferPos==-1 || i < stdInBufferSize)
+        
+        // se buffer estiver cheio, mete um \0 na ultima posicao e percorre o resto do stdInBuffer
+        if(lidosParaBuffer >= bufferSize){
+            buffer[bufferSize-1] = '\0';
+            
+            // acabar de ler o buffer até ao \n, ou até ler tudo o que tinha a ler, ou quando ler o buffer todo
+            if(stdInBuffer[stdInBufferPos-1] == '\n')
+                sair = true;
+            
+            while(!sair && stdInBuffer[stdInBufferPos++] != '\n' && stdInBufferPos < stdInBufferSize && stdInBufferPos < stdInBufferLidos)
+                ;
+            
+            if(stdInBuffer[stdInBufferPos-1] == '\n')
+                sair = true;
+        }
+        
+        // se acabou de ler o que restava do stdin
+        if(stdInBufferPos >= stdInBufferLidos && stdInBufferLidos < stdInBufferSize){
+            stdInBufferPos = -1;
             break;
-    }
-    
-}
-
-int apagaFicheiros(int ultimoNr){
-    return 0;
-    
-    // precisa de modificações.
-    // deverá apagar os ficheiros 1 a 1
-    // os nomes devem ser:
-    // tmp_map1
-    // tmp_map2
-    // ...
-    // tmp_map<ultimoNr>
-    
-    // isto apenas deverá ser feito numa segunda fase, em que o map esteja 
-    // funcional e mais que testado
-    
-    if(fork() == 0){
-        // apenas o filho vai fazer isto
-        char *args[] = {"rm", "-v", "./tmp_map*", NULL};
-        //char *args[] = {"pwd",  NULL};
-        
-        execvp(args[0], args);
-        perror("ERROR");
-
-        exit(1); // deverá ser o rm a terminar, e não chegar aqui
-    }else{
-        // apenas o pai vai fazer isto
-        int res;
-        wait(&res);
-        if(WIFEXITED(res)){
-            res = WEXITSTATUS(res);
-
-            printf("RM terminou. Código: %d\n", res);
-        }else{
-            printf("RM terminou com erro. Código: %d\n", res);
         }
     }
+    
+    return 0;
 }
-
