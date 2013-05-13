@@ -5,6 +5,8 @@
 #ifndef MAP_H
 #define	MAP_H
 
+#include "interpreter.h"
+
 int map(char *comando);
 
 /**
@@ -25,6 +27,14 @@ int criarFicheiro(int nrFicheiro, int *fdResultante);
 int lerLinha(char *buffer, int bufferSize);
 
 int apagaFicheiros(int ultimoNr);
+
+/**
+ * Escolhe o proximo pipe livre
+ * @param pOut Array de pipes e PIDs
+ * @param livre Vai ficar aqui o indice do pipe livre
+ * @return 0 se tudo correr bem, -1 se houve um processo a terminar com erro
+ */
+int setPipeLivre(int *livre);
 
 #endif	/* MAP_H */
 

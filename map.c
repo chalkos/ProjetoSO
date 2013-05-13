@@ -10,6 +10,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+// kill
+#include <sys/types.h>
+#include <signal.h>
+
 // sprintf
 #include <stdio.h>
 
@@ -33,6 +37,37 @@ int stdInBufferLidos = 0;
 
 int newStdin;
 
+bool abortMap = false; // fica true caso tenha de se abortar o comando map
+
+//pipes para receber dados do stdout dos comandos nas posições 0 e 1
+//a posição 2 é o pid do filho
+//a posição 3 é um booleano que indica se o processo ainda existe
+int pOut[MAXCOM][4];
+
+void setPipeFree(){
+    int resultado;
+    int pid = wait(&resultado);
+    
+    if(!WIFEXITED(resultado)){
+        // terminou abruptamente
+        abortMap = true;
+    }
+    
+    int i;
+    bool encontrou = false;
+    for(i=0; i<MAXCOM; i++)
+        if(pOut[i][2] == pid){
+            encontrou = true;
+            pOut[i][3] = false;
+            break;
+        }
+    
+    if(encontrou)
+        printf("encontrou na pos %d!\n", i);
+    else
+        printf("nao encontrou o pid %d\n", pid);
+}
+
 int map(char *comando){
     char** args;
     /*if( separaStrEmArgumentos(comando, args) != 0 ){
@@ -51,32 +86,48 @@ int map(char *comando){
     
     char buffer[4096];
     
-    int pOut[MAXCOM][2]; //pipes para receber dados do stdout dos comandos
+    for(i=0; i<MAXCOM; i++)
+        pOut[i][3] = false;
     bool todosPipesUsados = false;
+    
+    signal(SIGCHLD, setPipeFree);
     
     
     while(1){
-        if(lerLinha(buffer, 4096) != -1)
+        if(lerLinha(buffer, 4096) == -1)
             break;
         
         if(todosPipesUsados){
-            setPipeLivre(&i);
+            if(setPipeLivre(&i) == -1){
+                // houve um erro na execução de um comando
+                //terminar os outros
+            }
+            char c;
+            while(read(pOut[i][0], &c, sizeof(char)) > 0){
+                printf("%c", c);
+            }
+            
+            close(pOut[i][0]); //fechar o que resta do pipe
         }
             
-        
+        // criar um pipe na posição i
         pipe(pOut[i]);
+        pOut[i][3] = true;
+        
         
         
         // fazendo forks
-        if(fork()==0){
+        if( (pOut[i][2] = fork())==0){
             // fechar a saida do pipe no filho
             close(pOut[i][0]);
             // o stdout do filho passa a ser a entrada do pipe
             dup2(pOut[i][1], 1);
             // execvp
             
+            printf("filho #%d - %s\n", i, buffer);
             
-            exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
+            exit(EXIT_SUCCESS);
+            //exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
         // fechar a entrada do pipe no pai
@@ -85,25 +136,31 @@ int map(char *comando){
         // limitar para ter apenas alguns ficheiros em execucao (variavel "emExecucao")
         // arranjar maneira de receber a informação de volta (ter 1 pipe para cada)
         
+        
         if(!todosPipesUsados && i==MAXCOM-1)
             todosPipesUsados = true;
+        
+        if(!todosPipesUsados)
+            i++;
     }
+    
+    
     
 }
 
-int setPipeLivre(int &i){
-    // vai fazer o wait, quando receber um wait, vai ver qual é o nr que ele retorna e mete isso no i
-    // também verifica se o processo filho terminou com erro
-    int resultado;
-    wait(&resultado);
+int setPipeLivre(int *livre){
+    // vai enviar um sinal «zero» aos processos filhos
+    // se houver erro, o processo já não existe, e pode-se renovar o pipe
+    // se funcionar, o processo ainda está a correr
+    // também verifica se o processo terminou de forma inesperada
+    bool sair = false;
+    int i;
     
-    if(WIFEXITED(resultado)){
-        resultado = WEXITSTATUS(resultado);
-        // terminou 
-        if(resultado >= 0 && resultado < MAXCOM)
-            *i = resultado;
-    }else{
-        // cópia terminou com erro
+    while(!sair){
+        for(i=0; i<MAXCOM; i++){
+            if(pOut[i][3] == false)
+                *livre = i;
+        }
     }
 }
 

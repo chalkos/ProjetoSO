@@ -6,7 +6,7 @@
 #ifndef INTERPRETER_H
 #define	INTERPRETER_H
 
-#define MAXCOM 30
+#define MAXCOM 5
 
 /**
  * Recebe um comando em formato de texto e separa-o em argumentos.
