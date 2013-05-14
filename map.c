@@ -22,6 +22,7 @@
 
 // exit
 #include <stdlib.h>
+#include <string.h>
 
 // locais
 #include "map.h"
@@ -30,6 +31,7 @@
 #include "bool.h"
 
 #define stdInBufferSize 65536 //64 Kb
+#define argBufferSize 4096
 
 char stdInBuffer[stdInBufferSize];
 int stdInBufferPos = stdInBufferSize;
@@ -44,11 +46,12 @@ bool abortMap = false; // fica true caso tenha de se abortar o comando map
 //a posição 3 é um booleano que indica se o processo ainda existe
 pipes pOut[MAXCOM];
 
-void setPipeFree(){
+int esperaPorPipe(){
     int resultado;
     int pid = wait(&resultado);
     
-    //printf("MY PID IS: %d\n", getpid());
+    if(pid == -1)
+        return -1;
     
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
@@ -66,21 +69,23 @@ void setPipeFree(){
         }
     }
     
-    return;
-    
-    if(encontrou)
-        printf("encontrou na pos %d!\n", i);
-    else
-        printf("nao encontrou o pid %d\n", pid);
+    if(!encontrou)
+        return -1;
+    return i;
 }
 
 int map(char *comando){
-    char** args;
-    /*if( separaStrEmArgumentos(comando, args) != 0 ){
+    char **args;
+    if( separaStrEmArgumentos(comando, &args) != 0 ){
         return -1;
-    }*/
+    }
+    int i=0;
+    for(i=0; args[i]; i++);
     
-    signal(SIGCHLD, setPipeFree);
+    args = (char**)realloc(args, sizeof(char) * (i+2)); //acrescentar uma posição extra ao array (para a linha argumento)
+    args[i+1] = NULL; //meter o NULL nessa posição
+    
+    int indiceArgsBuffer = i;
     
     // utilizar o ficheiro de stdinDebug
     int stdinDebugFD = open("stdinDebug", O_RDONLY); //abrir o ficheiro
@@ -90,35 +95,37 @@ int map(char *comando){
     //à medida que vai sendo preciso (lazy)
     //newStdin = dup(0);
     
-    int i=0; //indice do pipe
-    
-    char buffer[4096];
-    
-    for(i=0; i<MAXCOM; i++)
-        pOut[i].vivo = false;
     i=0;
-    bool todosPipesUsados = false;
+    bool livre = true;
     
+    char buffer[argBufferSize];
     
+    for(i=0; i<MAXCOM; i++){
+        pOut[i].pid = -1;
+        pOut[i].vivo = false;
+    }
+    i=0;
+    
+    inicializaTabela();
     
     
     while(1){
-        if(lerLinha(buffer, 4096) == -1)
+        if(lerLinha(buffer, argBufferSize) == -1)
             break;
         
-        if(todosPipesUsados){
-            if(setPipeLivre(&i) == -1){
-                // houve um erro na execução de um comando
-                //terminar os outros
-            }
-            char c;
-            while(read(pOut[i].pipe[0], &c, sizeof(char)) > 0){
-                printf("%c", c);
-            }
-            
-            close(pOut[i].pipe[0]); //fechar o que resta do pipe
+        if(!livre){
+            i = esperaPorPipe();
+            if( i == -1 )
+                printf("BAAM!\n");
         }
-            
+        
+        
+        if(pOut[i].vivo == false && pOut[i].pid > 0){
+            lerChaveValor(i);
+            close(pOut[i].pipe[0]); //fechar o que resta do pipe
+            pOut[i].pid = -1;
+        }
+          
         // criar um pipe na posição i
         pipe(pOut[i].pipe);
         pOut[i].vivo = true;
@@ -133,47 +140,71 @@ int map(char *comando){
             dup2(pOut[i].pipe[1], 1);
             // execvp
             
-            printf("filho #%d - %s\n", i, buffer);
+            args[indiceArgsBuffer] = buffer;
             
-            exit(EXIT_SUCCESS);
-            //exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
+            execvp(args[0], args);
+            
+            
+            //printf("%s %s %s\n", args[0], args[1], args[2]);
+            
+            
+            //sleep(1);
+            
+            //exit(EXIT_SUCCESS);
+            exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
-        //printf("criado pid %d\n", pOut[i][2]);
+        //printf("criado pid %d\n", pOut[i].pid);
         
         // fechar a entrada do pipe no pai
         close(pOut[i].pipe[1]);
         
-        // limitar para ter apenas alguns ficheiros em execucao (variavel "emExecucao")
-        // arranjar maneira de receber a informação de volta (ter 1 pipe para cada)
-        
-        
-        if(!todosPipesUsados && i==MAXCOM-1)
-            todosPipesUsados = true;
-        
-        if(!todosPipesUsados)
-            i++;
-    }
-    
-    
-    
-}
-
-int setPipeLivre(int *livre){
-    // vai enviar um sinal «zero» aos processos filhos
-    // se houver erro, o processo já não existe, e pode-se renovar o pipe
-    // se funcionar, o processo ainda está a correr
-    // também verifica se o processo terminou de forma inesperada
-    int i;
-    
-    while(1){
+        livre = false;
         for(i=0; i<MAXCOM; i++){
             if(pOut[i].vivo == false){
-                *livre = i;
-                return 0;
+                livre = true;
+                break;
             }
         }
     }
+    
+    while((i = esperaPorPipe()) != -1){
+        lerChaveValor(i);
+        close(pOut[i].pipe[0]); //fechar o que resta do pipe
+        pOut[i].pid = -1; // sinalizar o pipe como terminado
+    }
+    
+    printTabela();
+}
+
+int lerChaveValor(int pos){
+    const int tamanhoInicial = 50;
+    int tamanho = tamanhoInicial;
+    int incrementos = 1;
+    
+    char *buffer = (char*)malloc(sizeof(char) * tamanho);
+    char *i = buffer;
+    int lidos;
+    
+    while((lidos = read(pOut[pos].pipe[0], i, sizeof(char)*(tamanho-1))) > 0){
+        if( lidos < tamanho-1){
+            //meter \0 no fim
+            *(i+lidos-1) = '\0'; //>>>>>>>>>>>>>>>>>>>>>>>>cuidado com o ultimo valor do stdin
+            break; // não vai ler mais nada, evita fazer mais um read
+        }else{
+            //lidos == tamanho-1, quer dizer que há mais para ler
+            incrementos++;
+            buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
+            
+            i = buffer + tamanhoInicial * incrementos;
+        }
+    }
+    
+    char *chave, *valor;
+    chave = strtok_r(buffer, " \t", &valor);
+    insereNaTabela(chave, valor);
+    
+    free(buffer);
 }
 
 int lerLinha(char *buffer, int bufferSize){

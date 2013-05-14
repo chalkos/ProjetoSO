@@ -26,15 +26,11 @@ int criarFicheiro(int nrFicheiro, int *fdResultante);
  */
 int lerLinha(char *buffer, int bufferSize);
 
-int apagaFicheiros(int ultimoNr);
+int lerChaveValor(int pos);
 
-/**
- * Escolhe o proximo pipe livre
- * @param pOut Array de pipes e PIDs
- * @param livre Vai ficar aqui o indice do pipe livre
- * @return 0 se tudo correr bem, -1 se houve um processo a terminar com erro
- */
-int setPipeLivre(int *livre);
+int esperaPorPipe();
+
+int getNrPipesLivres();
 
 #endif	/* MAP_H */
 

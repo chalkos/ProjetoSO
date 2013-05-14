@@ -10,6 +10,7 @@ typedef enum {
   err_outofmemory,
   err_argumentoInvalido,
   err_naoFezOpen,
+  err_chaveOuValorNulo,
 } errorCode;
 
 // esta função deve ser chamada sempre da forma:
