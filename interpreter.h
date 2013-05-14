@@ -6,7 +6,15 @@
 #ifndef INTERPRETER_H
 #define	INTERPRETER_H
 
+#include "bool.h"
+
 #define MAXCOM 5
+
+typedef struct sPipes{
+   int pipe[2];   // 0 = read, 1 = write
+   int pid;
+   bool vivo; // se o processo está a correr ou se já terminou
+} *pipesPt, pipes;
 
 /**
  * Recebe um comando em formato de texto e separa-o em argumentos.

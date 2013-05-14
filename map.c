@@ -42,11 +42,13 @@ bool abortMap = false; // fica true caso tenha de se abortar o comando map
 //pipes para receber dados do stdout dos comandos nas posições 0 e 1
 //a posição 2 é o pid do filho
 //a posição 3 é um booleano que indica se o processo ainda existe
-int pOut[MAXCOM][4];
+pipes pOut[MAXCOM];
 
 void setPipeFree(){
     int resultado;
     int pid = wait(&resultado);
+    
+    //printf("MY PID IS: %d\n", getpid());
     
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
@@ -55,12 +57,16 @@ void setPipeFree(){
     
     int i;
     bool encontrou = false;
-    for(i=0; i<MAXCOM; i++)
-        if(pOut[i][2] == pid){
+    for(i=0; i<MAXCOM; i++){
+        //printf("-----[%d] %d; %d; %d; %d\n", i, pOut[i].pipe[0], pOut[i].pipe[1], pOut[i].pid, pOut[i].vivo);
+        if(pOut[i].pid == pid){
             encontrou = true;
-            pOut[i][3] = false;
+            pOut[i].vivo = false;
             break;
         }
+    }
+    
+    return;
     
     if(encontrou)
         printf("encontrou na pos %d!\n", i);
@@ -73,6 +79,8 @@ int map(char *comando){
     /*if( separaStrEmArgumentos(comando, args) != 0 ){
         return -1;
     }*/
+    
+    signal(SIGCHLD, setPipeFree);
     
     // utilizar o ficheiro de stdinDebug
     int stdinDebugFD = open("stdinDebug", O_RDONLY); //abrir o ficheiro
@@ -87,10 +95,11 @@ int map(char *comando){
     char buffer[4096];
     
     for(i=0; i<MAXCOM; i++)
-        pOut[i][3] = false;
+        pOut[i].vivo = false;
+    i=0;
     bool todosPipesUsados = false;
     
-    signal(SIGCHLD, setPipeFree);
+    
     
     
     while(1){
@@ -103,25 +112,25 @@ int map(char *comando){
                 //terminar os outros
             }
             char c;
-            while(read(pOut[i][0], &c, sizeof(char)) > 0){
+            while(read(pOut[i].pipe[0], &c, sizeof(char)) > 0){
                 printf("%c", c);
             }
             
-            close(pOut[i][0]); //fechar o que resta do pipe
+            close(pOut[i].pipe[0]); //fechar o que resta do pipe
         }
             
         // criar um pipe na posição i
-        pipe(pOut[i]);
-        pOut[i][3] = true;
+        pipe(pOut[i].pipe);
+        pOut[i].vivo = true;
         
         
         
         // fazendo forks
-        if( (pOut[i][2] = fork())==0){
+        if( (pOut[i].pid = fork())==0){
             // fechar a saida do pipe no filho
-            close(pOut[i][0]);
+            close(pOut[i].pipe[0]);
             // o stdout do filho passa a ser a entrada do pipe
-            dup2(pOut[i][1], 1);
+            dup2(pOut[i].pipe[1], 1);
             // execvp
             
             printf("filho #%d - %s\n", i, buffer);
@@ -130,8 +139,10 @@ int map(char *comando){
             //exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
+        //printf("criado pid %d\n", pOut[i][2]);
+        
         // fechar a entrada do pipe no pai
-        close(pOut[i][1]);
+        close(pOut[i].pipe[1]);
         
         // limitar para ter apenas alguns ficheiros em execucao (variavel "emExecucao")
         // arranjar maneira de receber a informação de volta (ter 1 pipe para cada)
@@ -153,13 +164,14 @@ int setPipeLivre(int *livre){
     // se houver erro, o processo já não existe, e pode-se renovar o pipe
     // se funcionar, o processo ainda está a correr
     // também verifica se o processo terminou de forma inesperada
-    bool sair = false;
     int i;
     
-    while(!sair){
+    while(1){
         for(i=0; i<MAXCOM; i++){
-            if(pOut[i][3] == false)
+            if(pOut[i].vivo == false){
                 *livre = i;
+                return 0;
+            }
         }
     }
 }
