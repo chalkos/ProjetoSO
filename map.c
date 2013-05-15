@@ -186,8 +186,8 @@ int lerChaveValor(int pos){
     char *i = buffer;
     int lidos;
     
-    while((lidos = read(pOut[pos].pipe[0], i, sizeof(char)*(tamanho-1))) > 0){
-        if( lidos < tamanho-1){
+    while((lidos = read(pOut[pos].pipe[0], i, sizeof(char)*tamanhoInicial)) > 0){
+        if( lidos < tamanhoInicial){
             //meter \0 no fim
             *(i+lidos-1) = '\0'; //>>>>>>>>>>>>>>>>>>>>>>>>cuidado com o ultimo valor do stdin
             break; // não vai ler mais nada, evita fazer mais um read
@@ -196,13 +196,23 @@ int lerChaveValor(int pos){
             incrementos++;
             buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
             
-            i = buffer + tamanhoInicial * incrementos;
+            i = buffer + tamanhoInicial * (incrementos-1);
         }
     }
     
     char *chave, *valor;
-    chave = strtok_r(buffer, " \t", &valor);
-    insereNaTabela(chave, valor);
+    
+    chave = strtok(buffer, "\t");
+    valor = strtok(NULL, "\n");
+    while( chave != NULL && valor != NULL ){
+        insereNaTabela(chave, valor);
+        chave = strtok(NULL, "\t");
+        valor = strtok(NULL, "\n");
+    }
+    
+    
+    
+    
     
     free(buffer);
 }
@@ -210,6 +220,8 @@ int lerChaveValor(int pos){
 int lerLinha(char *buffer, int bufferSize){
     if(stdInBufferPos == -1)
         return -1;
+    
+        
     
     int lidosParaBuffer = 0;
     bool sair = false; //sai quando encontra um \n
@@ -225,6 +237,7 @@ int lerLinha(char *buffer, int bufferSize){
                 stdInBufferPos = -1;
                 break;
             }
+            
             stdInBufferPos = 0;
         }
         
@@ -263,6 +276,7 @@ int lerLinha(char *buffer, int bufferSize){
         // se acabou de ler o que restava do stdin
         if(stdInBufferPos >= stdInBufferLidos && stdInBufferLidos < stdInBufferSize){
             stdInBufferPos = -1;
+            buffer[lidosParaBuffer] = '\0';
             break;
         }
     }
