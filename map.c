@@ -29,6 +29,7 @@
 #include "erro.h"
 #include "interpreter.h"
 #include "bool.h"
+#include "lista.h"
 
 #define stdInBufferSize 65536 //64 Kb
 #define argBufferSize 4096
@@ -37,7 +38,7 @@ char stdInBuffer[stdInBufferSize];
 int stdInBufferPos = stdInBufferSize;
 int stdInBufferLidos = 0;
 
-int newStdin;
+bool zombieFound = false;
 
 bool abortMap = false; // fica true caso tenha de se abortar o comando map
 
@@ -46,9 +47,23 @@ bool abortMap = false; // fica true caso tenha de se abortar o comando map
 //a posição 3 é um booleano que indica se o processo ainda existe
 pipes pOut[MAXCOM];
 
+void filhoMorreu(){
+    zombieFound = true;
+}
+
 int esperaPorPipe(){
+    // se não houver processos zombies, ir esvaziando pipes
+    // evitando assim um deadlock quando um filho enche o pipe e o pai fica a
+    // espera que ele morra para poder ler a informação e o filho fica a espera
+    // que o pai lhe esvazie o pipe
+    int i=0;
+    for(i=0; i<MAXCOM && !zombieFound; i++){
+        lerChaveValor(i);
+    }
+    
     int resultado;
     int pid = wait(&resultado);
+    zombieFound = false;
     
     if(pid == -1)
         return -1;
@@ -58,7 +73,6 @@ int esperaPorPipe(){
         abortMap = true;
     }
     
-    int i;
     bool encontrou = false;
     for(i=0; i<MAXCOM; i++){
         //printf("-----[%d] %d; %d; %d; %d\n", i, pOut[i].pipe[0], pOut[i].pipe[1], pOut[i].pid, pOut[i].vivo);
@@ -71,6 +85,7 @@ int esperaPorPipe(){
     
     if(!encontrou)
         return -1;
+    
     return i;
 }
 
@@ -106,8 +121,10 @@ int map(char *comando){
     }
     i=0;
     
-    inicializaTabela();
+    listaInit();
     
+    //assegurar que se um filho morrer na fase de MAP chama a função filhoMorreu
+    signal(SIGCHLD, filhoMorreu);
     
     while(1){
         if(lerLinha(buffer, argBufferSize) == -1)
@@ -129,8 +146,6 @@ int map(char *comando){
         // criar um pipe na posição i
         pipe(pOut[i].pipe);
         pOut[i].vivo = true;
-        
-        
         
         // fazendo forks
         if( (pOut[i].pid = fork())==0){
@@ -174,7 +189,8 @@ int map(char *comando){
         pOut[i].pid = -1; // sinalizar o pipe como terminado
     }
     
-    printTabela();
+    //printTabela();
+    listaPrint();
 }
 
 int lerChaveValor(int pos){
@@ -185,27 +201,49 @@ int lerChaveValor(int pos){
     char *buffer = (char*)malloc(sizeof(char) * tamanho);
     char *i = buffer;
     int lidos;
+    int lidosTotal = 0;
     
-    while((lidos = read(pOut[pos].pipe[0], i, sizeof(char)*tamanhoInicial)) > 0){
-        if( lidos < tamanhoInicial){
+    // ler 1 caracter de cada vez
+    /*while( (lidos = read(pOut[pos].pipe[0], i, sizeof(char))) > 0 ){
+        if( (i-buffer) >= tamanho-1 ){
+            // aumentar o buffer
+            incrementos++;
+            buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
+        }
+        
+        i++;
+        if( *(i-1) == '\n' ){
+            *i = '\0';
+            break;
+        }
+    }*/
+    
+    while(lidos = read(pOut[pos].pipe[0], i, sizeof(char)*tamanhoInicial)){
+        if(lidos < 0)
+            lidos = 0; // para o lidosTotal não decrescer
+        lidosTotal += lidos;
+        if( lidos <= 0){
             //meter \0 no fim
-            *(i+lidos-1) = '\0'; //>>>>>>>>>>>>>>>>>>>>>>>>cuidado com o ultimo valor do stdin
-            break; // não vai ler mais nada, evita fazer mais um read
+            *(i+lidos-1) = '\0';
+            break;
         }else{
             //lidos == tamanho-1, quer dizer que há mais para ler
             incrementos++;
             buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
             
-            i = buffer + tamanhoInicial * (incrementos-1);
+            i = buffer + lidosTotal;
         }
     }
+    
+    if(lidosTotal == 0) return -1;
     
     char *chave, *valor;
     
     chave = strtok(buffer, "\t");
     valor = strtok(NULL, "\n");
     while( chave != NULL && valor != NULL ){
-        insereNaTabela(chave, valor);
+        //insereNaTabela(chave, valor);
+        listaInsere(chave, valor);
         chave = strtok(NULL, "\t");
         valor = strtok(NULL, "\n");
     }
@@ -215,6 +253,7 @@ int lerChaveValor(int pos){
     
     
     free(buffer);
+    return 0;
 }
 
 int lerLinha(char *buffer, int bufferSize){

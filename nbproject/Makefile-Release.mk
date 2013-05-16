@@ -37,6 +37,7 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 OBJECTFILES= \
 	${OBJECTDIR}/erro.o \
 	${OBJECTDIR}/interpreter.o \
+	${OBJECTDIR}/lista.o \
 	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/map.o \
 	${OBJECTDIR}/profiler.o \
@@ -76,6 +77,11 @@ ${OBJECTDIR}/interpreter.o: interpreter.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/interpreter.o interpreter.c
+
+${OBJECTDIR}/lista.o: lista.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -O2 -MMD -MP -MF $@.d -o ${OBJECTDIR}/lista.o lista.c
 
 ${OBJECTDIR}/main.o: main.c 
 	${MKDIR} -p ${OBJECTDIR}

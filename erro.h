@@ -6,11 +6,12 @@
 #define	ERRO_H
 
 typedef enum {
-  err_sucesso = 0,
-  err_outofmemory,
-  err_argumentoInvalido,
-  err_naoFezOpen,
-  err_chaveOuValorNulo,
+    err_sucesso = 0,
+    err_outofmemory,
+    err_argumentoInvalido,
+    err_naoFezOpen,
+    err_chaveOuValorNulo,
+    err_adicionarValor,
 } errorCode;
 
 // esta função deve ser chamada sempre da forma:

@@ -32,5 +32,10 @@ int esperaPorPipe();
 
 int getNrPipesLivres();
 
+/**
+ * Chamada quando um filho morre
+ */
+void filhoMorreu();
+
 #endif	/* MAP_H */
 
