@@ -190,7 +190,7 @@ int map(char *comando){
     }
     
     //printTabela();
-    listaPrint();
+    //listaPrint();
 }
 
 int lerChaveValor(int pos){

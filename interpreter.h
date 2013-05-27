@@ -12,8 +12,10 @@
 
 typedef struct sPipes{
    int pipe[2];   // 0 = read, 1 = write
+   int pipeReduceOut[2];
    int pid;
    bool vivo; // se o processo está a correr ou se já terminou
+   int indiceTabela;
 } pipes;
 
 typedef struct sTabela{

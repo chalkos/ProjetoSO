@@ -130,3 +130,9 @@ void listaPrint(){
         }
     }
 }
+
+void listaReduced(int indice, char *reducedValue){
+    // copiar a string
+    listas[indice].reduced = (char*)malloc(sizeof(char) * (strlen(reducedValue)+1));
+    strcpy(listas[indice].reduced, reducedValue);
+}

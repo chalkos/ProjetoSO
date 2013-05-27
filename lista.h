@@ -10,6 +10,7 @@ typedef struct sElem{
 typedef struct sLista{
     char *chave;
     Elem *valores;
+    char *reduced; //valor dado pelo reduce
     int nElems;
 } Lista;
 
@@ -35,7 +36,7 @@ void listaInit();
 
 void listaPrint();
 
-
+void listaReduced(char *reducedValue);
 
 #endif	/* LISTA_H */
 

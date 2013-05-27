@@ -20,6 +20,7 @@ int main(int argc, char** argv) {
     
     
     map(argv[1]);
+    reduce(argv[2]);
     
     
     return (EXIT_SUCCESS);
