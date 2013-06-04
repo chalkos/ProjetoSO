@@ -4,41 +4,31 @@
 #include <string.h>
 #include "erro.h"
 
-#define STDERR 2
+char errorLineAsString[10];
 
-errorCode lastErrorNr = err_sucesso;
-char lastErrorFilename[256];
-int lastErrorLine;
-
-char lastErrorString[512];
-char lastErrorTime[100];
-
-int setError(errorCode code, int linha, char *nomeFicheiro){
-    lastErrorNr = code;
-    strcpy(lastErrorFilename, nomeFicheiro);
-    lastErrorLine = linha;
-    snprintf(lastErrorTime, 100, "%s %s", __TIME__, __DATE__);
+void printErrorAndExit(const char* erro, const char* file, int line){
+    write(2, "[ERRO] ", 7);
+    write(2, erro, strlen(erro));
+    write(2, "(", 1);
+    write(2, file, strlen(file));
+    write(2, "@line", 5);
     
-    printLastError();
+    snprintf(errorLineAsString, 10, "%d", line);
     
-    return (int)code;
+    write(2, errorLineAsString, 10);
+    write(2, ")\nA aplicaçao vai terminar.\n", 28);
+    exit(EXIT_FAILURE);
 }
 
-errorCode getLastError(){
-    return lastErrorNr;
-}
-
-void printLastError(){
-    switch(lastErrorNr){
-        case err_sucesso:
-            lastErrorString[0] = '\0';
-            break;
-        case err_outofmemory:
-            snprintf(lastErrorString, 512, "[%s] Out of memory (%s, line #%d)\n",lastErrorTime, lastErrorFilename, lastErrorLine);
-            break;
-    }
+void printWarning(const char* erro, const char* file, int line){
+    write(2, "[WARN] ", 7);
+    write(2, erro, strlen(erro));
+    write(2, "(", 1);
+    write(2, file, strlen(file));
+    write(2, "@line", 5);
     
-    if( lastErrorString[0] != '\0' ){
-        write(STDERR, lastErrorString, 512);
-    }
+    snprintf(errorLineAsString, 10, "%d", line);
+    
+    write(2, errorLineAsString, 10);
+    write(2, ")\n", 2);
 }

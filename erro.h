@@ -1,34 +1,10 @@
-/* 
- * 
- */
+//exemplo:
+//printErrorAndExit("teste erro!", __FILE__, __LINE__);
 
-#ifndef ERRO_H
-#define	ERRO_H
+#pragma once
 
-typedef enum {
-    err_sucesso = 0,
-    err_outofmemory,
-    err_argumentoInvalido,
-    err_naoFezOpen,
-    err_chaveOuValorNulo,
-    err_adicionarValor,
-} errorCode;
 
-// esta função deve ser chamada sempre da forma:
-// setError( <codigo>, __LINE__, __FILE__ );
-
-/**
- * Define o ultimo erro
- * @param code Código de erro
- * @param linha __LINE__
- * @param nomeFicheiro __FILE__
- * @return o código de erro definido
- */
-int setError(errorCode code, int linha, char *nomeFicheiro);
-
-errorCode getLastError();
-
-void printLastError();
-
-#endif	/* ERRO_H */
+void printErrorAndExit(const char* erro, const char* file, int line);
+void printWarning(const char* erro, const char* file, int line);
+void printErrorMalloc();
 

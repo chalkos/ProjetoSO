@@ -1,6 +1,10 @@
-#ifndef LISTA_H
-#define	LISTA_H
+#pragma once
+//strcmp
+#include <string.h>
 
+#include "lista.h"
+#include "bool.h"
+#include "erro.h"
 
 typedef struct sElem{
     char *valor;
@@ -16,19 +20,11 @@ typedef struct sLista{
 
 Lista *listas;
 
-
-//strcmp
-#include <string.h>
-
-#include "lista.h"
-#include "bool.h"
-#include "erro.h"
-
-int listaPush( int indice, char *valor );
+void listaPush( int indice, char *valor );
 
 char *listaPop( int indice );
 
-int listaInsere( char *chave, char *valor);
+void listaInsere( char *chave, char *valor);
 
 void listaAumenta();
 
@@ -36,7 +32,9 @@ void listaInit();
 
 void listaPrint();
 
-void listaReduced(char *reducedValue);
+void listaDumpValues(int indice, int fd);
 
-#endif	/* LISTA_H */
+void listaReduced(int indice, char *reducedValue);
+
+void listaCount();
 

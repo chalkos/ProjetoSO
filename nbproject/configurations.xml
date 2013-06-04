@@ -5,11 +5,10 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>bool.h</itemPath>
+      <itemPath>comum.h</itemPath>
       <itemPath>erro.h</itemPath>
-      <itemPath>interpreter.h</itemPath>
       <itemPath>lista.h</itemPath>
       <itemPath>map.h</itemPath>
-      <itemPath>profiler.h</itemPath>
       <itemPath>reduce.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
@@ -20,12 +19,11 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>comum.c</itemPath>
       <itemPath>erro.c</itemPath>
-      <itemPath>interpreter.c</itemPath>
       <itemPath>lista.c</itemPath>
       <itemPath>main.c</itemPath>
       <itemPath>map.c</itemPath>
-      <itemPath>profiler.c</itemPath>
       <itemPath>reduce.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -54,13 +52,13 @@
       </compileType>
       <item path="bool.h" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="comum.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="comum.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="erro.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="erro.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="interpreter.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="interpreter.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lista.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -71,10 +69,6 @@
       <item path="map.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="map.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="profiler.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="profiler.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="reduce.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -107,13 +101,13 @@
       </compileType>
       <item path="bool.h" ex="false" tool="3" flavor2="0">
       </item>
+      <item path="comum.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="comum.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="erro.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="erro.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="interpreter.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="interpreter.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="lista.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -124,10 +118,6 @@
       <item path="map.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="map.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="profiler.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="profiler.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="reduce.c" ex="false" tool="0" flavor2="0">
       </item>

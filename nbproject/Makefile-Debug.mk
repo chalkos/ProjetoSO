@@ -35,12 +35,11 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
+	${OBJECTDIR}/comum.o \
 	${OBJECTDIR}/erro.o \
-	${OBJECTDIR}/interpreter.o \
 	${OBJECTDIR}/lista.o \
 	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/map.o \
-	${OBJECTDIR}/profiler.o \
 	${OBJECTDIR}/reduce.o
 
 
@@ -68,15 +67,15 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/mapreduce: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/mapreduce ${OBJECTFILES} ${LDLIBSOPTIONS}
 
+${OBJECTDIR}/comum.o: comum.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} $@.d
+	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/comum.o comum.c
+
 ${OBJECTDIR}/erro.o: erro.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/erro.o erro.c
-
-${OBJECTDIR}/interpreter.o: interpreter.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/interpreter.o interpreter.c
 
 ${OBJECTDIR}/lista.o: lista.c 
 	${MKDIR} -p ${OBJECTDIR}
@@ -92,11 +91,6 @@ ${OBJECTDIR}/map.o: map.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} $@.d
 	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/map.o map.c
-
-${OBJECTDIR}/profiler.o: profiler.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} $@.d
-	$(COMPILE.c) -g -MMD -MP -MF $@.d -o ${OBJECTDIR}/profiler.o profiler.c
 
 ${OBJECTDIR}/reduce.o: reduce.c 
 	${MKDIR} -p ${OBJECTDIR}

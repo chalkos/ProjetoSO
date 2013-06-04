@@ -3,45 +3,34 @@
  * informação gerada por eles.
  */
 
-#ifndef INTERPRETER_H
-#define	INTERPRETER_H
+#pragma once
 
 #include "bool.h"
 
 #define MAXCOM 5
 
 typedef struct sPipes{
-   int pipe[2];   // 0 = read, 1 = write
-   int pipeReduceOut[2];
+   int pipeIn[2];   // 0 = read, 1 = write
+   int pipeOut[2];
    int pid;
    bool vivo; // se o processo está a correr ou se já terminou
    int indiceTabela;
 } pipes;
 
-typedef struct sTabela{
-    char *chave;
-    char *valor;
-} Tabela;
+bool zombieFound;
 
-Tabela *tabela;
+//informações sobre os filhos e pipes
+pipes pOut[MAXCOM];
 
 /**
  * Recebe um comando em formato de texto e separa-o em argumentos.
  * @param str O comando em formato de texto
  * @param args Um char** não inicializado onde vão ficar os argumentos. args[0] é o nome do executavel.
- * @return um errorCode com o resultado da operação
  */
-int separaStrEmArgumentos(char* str, char*** args );
+void separaStrEmArgumentos(char* str, char*** args );
 
-int inicializaTabela();
+void filhoMorreu();
 
-int aumentaTabela();
-
-int insereNaTabela(char *chave, char *valor);
-
-int printTabela();
-
-int agrupaChavesTabela();
-
-#endif	/* INTERPRETER_H */
+void *myMalloc(size_t size);
+void *myRealloc(void *ptr, size_t size);
 

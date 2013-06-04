@@ -27,8 +27,8 @@
 // locais
 #include "map.h"
 #include "erro.h"
-#include "interpreter.h"
 #include "bool.h"
+#include "comum.h"
 #include "lista.h"
 
 #define stdInBufferSize 65536 //64 Kb
@@ -38,20 +38,7 @@ char stdInBuffer[stdInBufferSize];
 int stdInBufferPos = stdInBufferSize;
 int stdInBufferLidos = 0;
 
-bool zombieFound = false;
-
-bool abortMap = false; // fica true caso tenha de se abortar o comando map
-
-//pipes para receber dados do stdout dos comandos nas posições 0 e 1
-//a posição 2 é o pid do filho
-//a posição 3 é um booleano que indica se o processo ainda existe
-pipes pOut[MAXCOM];
-
-void filhoMorreu(){
-    zombieFound = true;
-}
-
-int esperaPorPipe(){
+int esperaPorPipeMap(){
     // se não houver processos zombies, ir esvaziando pipes
     // evitando assim um deadlock quando um filho enche o pipe e o pai fica a
     // espera que ele morra para poder ler a informação e o filho fica a espera
@@ -66,16 +53,16 @@ int esperaPorPipe(){
     zombieFound = false;
     
     if(pid == -1)
-        return -1;
+        return -1; // o processo não tem mais filhos a que possa fazer wait
+        
     
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
-        abortMap = true;
+        printErrorAndExit("Uma execução do comando map terminou abruptamente.", __FILE__, __LINE__);
     }
     
     bool encontrou = false;
     for(i=0; i<MAXCOM; i++){
-        //printf("-----[%d] %d; %d; %d; %d\n", i, pOut[i].pipe[0], pOut[i].pipe[1], pOut[i].pid, pOut[i].vivo);
         if(pOut[i].pid == pid){
             encontrou = true;
             pOut[i].vivo = false;
@@ -84,20 +71,19 @@ int esperaPorPipe(){
     }
     
     if(!encontrou)
-        return -1;
+        printErrorAndExit("O pid do zombie encontrado não estava na lista.", __FILE__, __LINE__);
     
     return i;
 }
 
 int map(char *comando){
     char **args;
-    if( separaStrEmArgumentos(comando, &args) != 0 ){
-        return -1;
-    }
+    separaStrEmArgumentos(comando, &args);
+    
     int i=0;
     for(i=0; args[i]; i++);
     
-    args = (char**)realloc(args, sizeof(char) * (i+2)); //acrescentar uma posição extra ao array (para a linha argumento)
+    args = (char**)myRealloc(args, sizeof(char) * (i+2)); //acrescentar uma posição extra ao array (para a linha argumento)
     args[i+1] = NULL; //meter o NULL nessa posição
     
     int indiceArgsBuffer = i;
@@ -123,56 +109,62 @@ int map(char *comando){
     
     listaInit();
     
-    //assegurar que se um filho morrer na fase de MAP chama a função filhoMorreu
-    signal(SIGCHLD, filhoMorreu);
-    
     while(1){
         if(lerLinha(buffer, argBufferSize) == -1)
             break;
         
         if(!livre){
-            i = esperaPorPipe();
-            if( i == -1 )
-                printf("BAAM!\n");
+            i = esperaPorPipeMap();
+            if(i == -1)
+                printErrorAndExit("Ocorreu um ECHILD n wait antes do tempo.", __FILE__, __LINE__);
         }
         
         
         if(pOut[i].vivo == false && pOut[i].pid > 0){
             lerChaveValor(i);
-            close(pOut[i].pipe[0]); //fechar o que resta do pipe
+            close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
             pOut[i].pid = -1;
         }
           
         // criar um pipe na posição i
-        pipe(pOut[i].pipe);
+        if( pipe(pOut[i].pipeOut) == -1 ){
+            if( errno == EMFILE)
+               printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
+            else if( errno == EMFILE)
+               printWarning("The system limit on the total number of open files has been reached. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
         pOut[i].vivo = true;
         
+        
         // fazendo forks
-        if( (pOut[i].pid = fork())==0){
+        while( (pOut[i].pid = fork()) == -1 ){
+            if( errno == EAGAIN )
+                printWarning("Não foi possível alocar memória para o filho ou o máximo de filhos permitido foi atingido. Tentando outra vez.", __FILE__, __LINE__);
+            if( errno == ENOMEM)
+                printWarning("failed to allocate the necessary kernel structures because memory is tight. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
+        if( pOut[i].pid==0){
             // fechar a saida do pipe no filho
-            close(pOut[i].pipe[0]);
+            close(pOut[i].pipeOut[0]);
             // o stdout do filho passa a ser a entrada do pipe
-            dup2(pOut[i].pipe[1], 1);
+            dup2(pOut[i].pipeOut[1], 1);
             // execvp
             
             args[indiceArgsBuffer] = buffer;
             
             execvp(args[0], args);
             
-            
-            //printf("%s %s %s\n", args[0], args[1], args[2]);
-            
-            
-            //sleep(1);
-            
-            //exit(EXIT_SUCCESS);
             exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
         //printf("criado pid %d\n", pOut[i].pid);
         
         // fechar a entrada do pipe no pai
-        close(pOut[i].pipe[1]);
+        close(pOut[i].pipeOut[1]);
         
         livre = false;
         for(i=0; i<MAXCOM; i++){
@@ -183,14 +175,14 @@ int map(char *comando){
         }
     }
     
-    while((i = esperaPorPipe()) != -1){
+    while((i = esperaPorPipeMap()) != -1){
         lerChaveValor(i);
-        close(pOut[i].pipe[0]); //fechar o que resta do pipe
+        close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
         pOut[i].pid = -1; // sinalizar o pipe como terminado
     }
     
-    //printTabela();
     //listaPrint();
+    
 }
 
 int lerChaveValor(int pos){
@@ -198,27 +190,12 @@ int lerChaveValor(int pos){
     int tamanho = tamanhoInicial;
     int incrementos = 1;
     
-    char *buffer = (char*)malloc(sizeof(char) * tamanho);
+    char *buffer = (char*)myMalloc(sizeof(char) * tamanho);
     char *i = buffer;
     int lidos;
     int lidosTotal = 0;
     
-    // ler 1 caracter de cada vez
-    /*while( (lidos = read(pOut[pos].pipe[0], i, sizeof(char))) > 0 ){
-        if( (i-buffer) >= tamanho-1 ){
-            // aumentar o buffer
-            incrementos++;
-            buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
-        }
-        
-        i++;
-        if( *(i-1) == '\n' ){
-            *i = '\0';
-            break;
-        }
-    }*/
-    
-    while(lidos = read(pOut[pos].pipe[0], i, sizeof(char)*tamanhoInicial)){
+    while(lidos = read(pOut[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
         if(lidos < 0)
             lidos = 0; // para o lidosTotal não decrescer
         lidosTotal += lidos;
@@ -229,7 +206,7 @@ int lerChaveValor(int pos){
         }else{
             //lidos == tamanho-1, quer dizer que há mais para ler
             incrementos++;
-            buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
+            buffer = (char*)myRealloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
             
             i = buffer + lidosTotal;
         }

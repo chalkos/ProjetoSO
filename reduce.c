@@ -27,31 +27,12 @@
 // locais
 #include "map.h"
 #include "erro.h"
-#include "interpreter.h"
+#include "comum.h"
 #include "bool.h"
 #include "lista.h"
+#include "reduce.h"
 
-#define stdInBufferSize 65536 //64 Kb
-#define argBufferSize 4096
-
-char stdInBuffer[stdInBufferSize];
-int stdInBufferPos = stdInBufferSize;
-int stdInBufferLidos = 0;
-
-bool zombieFound = false;
-
-bool abortMap = false; // fica true caso tenha de se abortar o comando map
-
-//pipes para receber dados do stdout dos comandos nas posições 0 e 1
-//a posição 2 é o pid do filho
-//a posição 3 é um booleano que indica se o processo ainda existe
-pipes pOut[MAXCOM];
-
-void filhoMorreu(){
-    zombieFound = true;
-}
-
-int esperaPorPipe(){
+int esperaPorPipeReduce(){
     // se não houver processos zombies, ir esvaziando pipes
     // evitando assim um deadlock quando um filho enche o pipe e o pai fica a
     // espera que ele morra para poder ler a informação e o filho fica a espera
@@ -70,7 +51,7 @@ int esperaPorPipe(){
     
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
-        abortMap = true;
+        printErrorAndExit("Uma execução do comando reduce terminou abruptamente.", __FILE__, __LINE__);
     }
     
     bool encontrou = false;
@@ -83,20 +64,22 @@ int esperaPorPipe(){
         }
     }
     
-    if(!encontrou)
-        return -1;
+    if(!encontrou){
+        //significa que um filho alimentador terminou
+        return esperaPorPipeReduce();
+    }
+        
     
     return i;
 }
 
 int reduce(char *comando){
     char **args;
-    if( separaStrEmArgumentos(comando, &args) != 0 ){
-        return -1;
-    }
+    separaStrEmArgumentos(comando, &args);
     
     int i=0;
     bool livre = false; //se já iniciou todos os filhos
+    int pidAlimentador;
     
     for(i=0; i<MAXCOM; i++){
         pOut[i].pid = -1;
@@ -104,53 +87,102 @@ int reduce(char *comando){
     }
     i=0;
     
-    //assegurar que se um filho morrer na fase de REDUCE chama a função filhoMorreu
-    signal(SIGCHLD, filhoMorreu);
+    int indiceChaveActual = 0;
     
     while(1){
+        if( indiceChaveActual  )
         
         if(!livre){
-            i = esperaPorPipe();
-            if( i == -1 )
-                printf("BAAM!\n");
+            i = esperaPorPipeReduce();
+            if(i == -1)
+                printErrorAndExit("Ocorreu um ECHILD no wait antes do tempo.", __FILE__, __LINE__);
         }
         
         
         
         if(pOut[i].vivo == false && pOut[i].pid > 0){
             lerReduced(i);
-            close(pOut[i].pipe[0]); //fechar o que resta do pipe
+            close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
             pOut[i].pid = -1;
         }
-          
+        
+        // atribuir um valor de indice 
+        pOut[i].indiceTabela = indiceChaveActual;
+        
         // criar um pipe na posição i
-        pipe(pOut[i].pipe);
+        if( pipe(pOut[i].pipeIn) == -1 ){
+            if( errno == EMFILE)
+               printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
+            else if( errno == EMFILE)
+               printWarning("The system limit on the total number of open files has been reached. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
+        // criar um pipe na posição i para receber o resultado do reduce
+        if( pipe(pOut[i].pipeOut) == -1 ){
+            if( errno == EMFILE)
+               printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
+            else if( errno == EMFILE)
+               printWarning("The system limit on the total number of open files has been reached. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
         pOut[i].vivo = true;
         
-        // fazendo forks
-        if( (pOut[i].pid = fork())==0){
-            // fechar a saida do pipe no filho
-            close(pOut[i].pipe[0]);
-            // o stdout do filho passa a ser a entrada do pipe
-            dup2(pOut[i].pipe[1], 1);
-            // execvp
+        
+        
+        // criar filho alimentador
+        while( (pidAlimentador = fork()) == -1 ){
+            if( errno == EAGAIN )
+                printWarning("Não foi possível alocar memória para o filho ou o máximo de filhos permitido foi atingido. Tentando outra vez.", __FILE__, __LINE__);
+            if( errno == ENOMEM)
+                printWarning("failed to allocate the necessary kernel structures because memory is tight. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
+        
+        // tarefa do filho alimentador
+        if( pidAlimentador == 0 ){
+            // código para o filho alimentador
+            close(pOut[i].pipeIn[0]);
+            close(pOut[i].pipeOut[1]);
+            close(pOut[i].pipeOut[0]);
+            
+            // alimentar o filho reduce
+            listaDumpValues(pOut[i].indiceTabela,pOut[i].pipeIn[1]);
+            
+            exit(EXIT_SUCCESS);
+        }
+        
+        // criar o filho reduce
+        while( (pOut[i].pid = fork()) == -1 ){
+            if( errno == EAGAIN )
+                printWarning("Não foi possível alocar memória para o filho ou o máximo de filhos permitido foi atingido. Tentando outra vez.", __FILE__, __LINE__);
+            if( errno == ENOMEM)
+                printWarning("failed to allocate the necessary kernel structures because memory is tight. Retrying in a while.", __FILE__, __LINE__);
+            
+            sleep(1000);
+        }
+        
+        // executar o reduce
+        if( pOut[i].pid==0){
+            // código para o filho reduce
+            close(pOut[i].pipeIn[1]);
+            close(pOut[i].pipeOut[0]);
+            
+            dup2(pOut[i].pipeIn[0], 0);
+            dup2(pOut[i].pipeOut[1], 1);
             
             execvp(args[0], args);
             
-            
-            //printf("%s %s %s\n", args[0], args[1], args[2]);
-            
-            
-            //sleep(1);
-            
-            //exit(EXIT_SUCCESS);
             exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
-        //printf("criado pid %d\n", pOut[i].pid);
+        // fechar todos os pipes no pai menos o que permite ler o resultado do reduce
+        close(pOut[i].pipeIn[0]);
+        close(pOut[i].pipeIn[1]);
         
-        // fechar a entrada do pipe no pai
-        close(pOut[i].pipe[1]);
+        close(pOut[i].pipeOut[1]);
         
         livre = false;
         for(i=0; i<MAXCOM; i++){
@@ -159,11 +191,12 @@ int reduce(char *comando){
                 break;
             }
         }
+        indiceChaveActual++;
     }
     
-    while((i = esperaPorPipe()) != -1){
+    while((i = esperaPorPipeReduce()) != -1){
         lerChaveValor(i);
-        close(pOut[i].pipe[0]); //fechar o que resta do pipe
+        close(pOut[i].pipeIn[0]); //fechar o que resta do pipe
         pOut[i].pid = -1; // sinalizar o pipe como terminado
     }
     
@@ -176,12 +209,12 @@ int lerReduced(int pos){
     int tamanho = tamanhoInicial;
     int incrementos = 1;
     
-    char *buffer = (char*)malloc(sizeof(char) * tamanho);
+    char *buffer = (char*)myMalloc(sizeof(char) * tamanho);
     char *i = buffer;
     int lidos;
     int lidosTotal = 0;
     
-    while(lidos = read(pOut[pos].pipe[0], i, sizeof(char)*tamanhoInicial)){
+    while(lidos = read(pOut[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
         if(lidos < 0)
             lidos = 0; // para o lidosTotal não decrescer
         lidosTotal += lidos;
@@ -192,7 +225,7 @@ int lerReduced(int pos){
         }else{
             //lidos == tamanho-1, quer dizer que há mais para ler
             incrementos++;
-            buffer = (char*)realloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
+            buffer = (char*)myRealloc(buffer, sizeof(char) * tamanhoInicial * incrementos);
             
             i = buffer + lidosTotal;
         }
@@ -208,69 +241,3 @@ int lerReduced(int pos){
     return 0;
 }
 
-int lerLinha(char *buffer, int bufferSize){
-    if(stdInBufferPos == -1)
-        return -1;
-    
-        
-    
-    int lidosParaBuffer = 0;
-    bool sair = false; //sai quando encontra um \n
-    
-    while(!sair){
-        if(stdInBufferPos >= stdInBufferSize){
-            // se o stdin estiver vazio apenas meter pos=-1 e sair
-            if(( stdInBufferLidos = read(0, stdInBuffer, stdInBufferSize)) <= 0){
-                // se chegar aqui, significa que escreveu qualquer coisa para o buffer
-                // logo temos de terminar o buffer
-                buffer[lidosParaBuffer-1] = '\0';
-                
-                stdInBufferPos = -1;
-                break;
-            }
-            
-            stdInBufferPos = 0;
-        }
-        
-        /*
-         * Copiar enquanto houver espaço no buffer
-         *      e enquanto a posição no stdinBuffer for menor que o tamanho do stdInBuffer
-         *      e enquanto a posição no stdinBuffer for menor que o nr de caracteres lidos do stdin
-         */
-        while( !sair && lidosParaBuffer < bufferSize && stdInBufferPos < stdInBufferSize && stdInBufferPos < stdInBufferLidos){
-            if(stdInBuffer[stdInBufferPos] == '\n'){
-                buffer[lidosParaBuffer++] = '\0';
-                sair = true;
-            }else
-                buffer[lidosParaBuffer++] = stdInBuffer[stdInBufferPos];
-            
-            stdInBufferPos++;
-        }
-        
-        
-        
-        // se buffer estiver cheio, mete um \0 na ultima posicao e percorre o resto do stdInBuffer
-        if(lidosParaBuffer >= bufferSize){
-            buffer[bufferSize-1] = '\0';
-            
-            // acabar de ler o buffer até ao \n, ou até ler tudo o que tinha a ler, ou quando ler o buffer todo
-            if(stdInBuffer[stdInBufferPos-1] == '\n')
-                sair = true;
-            
-            while(!sair && stdInBuffer[stdInBufferPos++] != '\n' && stdInBufferPos < stdInBufferSize && stdInBufferPos < stdInBufferLidos)
-                ;
-            
-            if(stdInBuffer[stdInBufferPos-1] == '\n')
-                sair = true;
-        }
-        
-        // se acabou de ler o que restava do stdin
-        if(stdInBufferPos >= stdInBufferLidos && stdInBufferLidos < stdInBufferSize){
-            stdInBufferPos = -1;
-            buffer[lidosParaBuffer] = '\0';
-            break;
-        }
-    }
-    
-    return 0;
-}
