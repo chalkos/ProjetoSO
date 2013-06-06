@@ -7,20 +7,20 @@
 
 #include "bool.h"
 
-#define MAXCOM 5
+int MAXCOM;
 
-typedef struct sPipes{
+typedef struct sGestor{
    int pipeIn[2];   // 0 = read, 1 = write
    int pipeOut[2];
    int pid;
    bool vivo; // se o processo está a correr ou se já terminou
    int indiceTabela;
-} pipes;
+} Gestor;
 
 bool zombieFound;
 
 //informações sobre os filhos e pipes
-pipes pOut[MAXCOM];
+Gestor *gestor;
 
 /**
  * Recebe um comando em formato de texto e separa-o em argumentos.

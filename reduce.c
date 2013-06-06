@@ -52,14 +52,15 @@ int esperaPorPipeReduce(){
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
         printErrorAndExit("Uma execução do comando reduce terminou abruptamente.", __FILE__, __LINE__);
-    }
+    }/*else if( WEXITSTATUS(resultado) == EXIT_FAILURE )
+        printErrorAndExit("Uma execução do comando reduce terminou sem sucesso.", __FILE__, __LINE__);*/
     
     bool encontrou = false;
     for(i=0; i<MAXCOM; i++){
-        //printf("-----[%d] %d; %d; %d; %d\n", i, pOut[i].pipe[0], pOut[i].pipe[1], pOut[i].pid, pOut[i].vivo);
-        if(pOut[i].pid == pid){
+        //printf("-----[%d] %d; %d; %d; %d\n", i, gestor[i].pipe[0], gestor[i].pipe[1], gestor[i].pid, gestor[i].vivo);
+        if(gestor[i].pid == pid){
             encontrou = true;
-            pOut[i].vivo = false;
+            gestor[i].vivo = false;
             break;
         }
     }
@@ -77,20 +78,23 @@ int reduce(char *comando){
     char **args;
     separaStrEmArgumentos(comando, &args);
     
+    
+    
     int i=0;
-    bool livre = false; //se já iniciou todos os filhos
+    bool livre = true;
     int pidAlimentador;
     
     for(i=0; i<MAXCOM; i++){
-        pOut[i].pid = -1;
-        pOut[i].vivo = false;
+        gestor[i].pid = -1;
+        gestor[i].vivo = false;
     }
     i=0;
     
     int indiceChaveActual = 0;
     
     while(1){
-        if( indiceChaveActual  )
+        if( indiceChaveActual > listaCount()-1 )
+            break;
         
         if(!livre){
             i = esperaPorPipeReduce();
@@ -100,17 +104,17 @@ int reduce(char *comando){
         
         
         
-        if(pOut[i].vivo == false && pOut[i].pid > 0){
+        if(gestor[i].vivo == false && gestor[i].pid > 0){
             lerReduced(i);
-            close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
-            pOut[i].pid = -1;
+            close(gestor[i].pipeOut[0]); //fechar o que resta do pipe
+            gestor[i].pid = -1;
         }
         
         // atribuir um valor de indice 
-        pOut[i].indiceTabela = indiceChaveActual;
+        gestor[i].indiceTabela = indiceChaveActual;
         
         // criar um pipe na posição i
-        if( pipe(pOut[i].pipeIn) == -1 ){
+        if( pipe(gestor[i].pipeIn) == -1 ){
             if( errno == EMFILE)
                printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
             else if( errno == EMFILE)
@@ -119,7 +123,7 @@ int reduce(char *comando){
             sleep(1000);
         }
         // criar um pipe na posição i para receber o resultado do reduce
-        if( pipe(pOut[i].pipeOut) == -1 ){
+        if( pipe(gestor[i].pipeOut) == -1 ){
             if( errno == EMFILE)
                printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
             else if( errno == EMFILE)
@@ -127,9 +131,6 @@ int reduce(char *comando){
             
             sleep(1000);
         }
-        pOut[i].vivo = true;
-        
-        
         
         // criar filho alimentador
         while( (pidAlimentador = fork()) == -1 ){
@@ -141,21 +142,24 @@ int reduce(char *comando){
             sleep(1000);
         }
         
+        //listaDumpValues(gestor[i].indiceTabela,2);
+        //write(2, "-----\n", 6);
+        
         // tarefa do filho alimentador
         if( pidAlimentador == 0 ){
             // código para o filho alimentador
-            close(pOut[i].pipeIn[0]);
-            close(pOut[i].pipeOut[1]);
-            close(pOut[i].pipeOut[0]);
+            close(gestor[i].pipeIn[0]);
+            close(gestor[i].pipeOut[1]);
+            close(gestor[i].pipeOut[0]);
             
             // alimentar o filho reduce
-            listaDumpValues(pOut[i].indiceTabela,pOut[i].pipeIn[1]);
+            listaDumpValues(gestor[i].indiceTabela,gestor[i].pipeIn[1]);
             
             exit(EXIT_SUCCESS);
         }
         
         // criar o filho reduce
-        while( (pOut[i].pid = fork()) == -1 ){
+        while( (gestor[i].pid = fork()) == -1 ){
             if( errno == EAGAIN )
                 printWarning("Não foi possível alocar memória para o filho ou o máximo de filhos permitido foi atingido. Tentando outra vez.", __FILE__, __LINE__);
             if( errno == ENOMEM)
@@ -165,28 +169,30 @@ int reduce(char *comando){
         }
         
         // executar o reduce
-        if( pOut[i].pid==0){
+        if( gestor[i].pid==0){
             // código para o filho reduce
-            close(pOut[i].pipeIn[1]);
-            close(pOut[i].pipeOut[0]);
+            close(gestor[i].pipeIn[1]);
+            close(gestor[i].pipeOut[0]);
             
-            dup2(pOut[i].pipeIn[0], 0);
-            dup2(pOut[i].pipeOut[1], 1);
+            dup2(gestor[i].pipeIn[0], 0);
+            dup2(gestor[i].pipeOut[1], 1);
             
             execvp(args[0], args);
             
             exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
         }
         
-        // fechar todos os pipes no pai menos o que permite ler o resultado do reduce
-        close(pOut[i].pipeIn[0]);
-        close(pOut[i].pipeIn[1]);
+        gestor[i].vivo = true;
         
-        close(pOut[i].pipeOut[1]);
+        // fechar todos os pipes no pai menos o que permite ler o resultado do reduce
+        close(gestor[i].pipeIn[0]);
+        close(gestor[i].pipeIn[1]);
+        
+        close(gestor[i].pipeOut[1]);
         
         livre = false;
         for(i=0; i<MAXCOM; i++){
-            if(pOut[i].vivo == false){
+            if(gestor[i].vivo == false){
                 livre = true;
                 break;
             }
@@ -195,13 +201,12 @@ int reduce(char *comando){
     }
     
     while((i = esperaPorPipeReduce()) != -1){
-        lerChaveValor(i);
-        close(pOut[i].pipeIn[0]); //fechar o que resta do pipe
-        pOut[i].pid = -1; // sinalizar o pipe como terminado
+        lerReduced(i);
+        close(gestor[i].pipeIn[0]); //fechar o que resta do pipe
+        gestor[i].pid = -1; // sinalizar o pipe como terminado
     }
     
-    //printTabela();
-    listaPrint();
+    listaPrintKeyReduced();
 }
 
 int lerReduced(int pos){
@@ -214,7 +219,7 @@ int lerReduced(int pos){
     int lidos;
     int lidosTotal = 0;
     
-    while(lidos = read(pOut[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
+    while(lidos = read(gestor[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
         if(lidos < 0)
             lidos = 0; // para o lidosTotal não decrescer
         lidosTotal += lidos;
@@ -233,8 +238,8 @@ int lerReduced(int pos){
     
     if(lidosTotal == 0) return -1;
     
-    
-    listaReduced(pOut[pos].indiceTabela, buffer);
+    buffer = strtok(buffer, "\n");
+    listaReduced(gestor[pos].indiceTabela, buffer);
     
     
     free(buffer);

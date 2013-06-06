@@ -15,8 +15,8 @@
 #include "erro.h"
 #include "comum.h"
 
-const int tamanhoInicial = 10; //nr de elementos do array
-const int tamanhoIncremento = 10; //nr de elementos a adicionar ao array a cada redimensionamento
+const int tamanhoInicial = 50; //nr de elementos que o array tem ao ser inicializado
+const int tamanhoIncremento = 20; //nr de elementos a adicionar ao array a cada redimensionamento
 int nListas = 0;
 
 
@@ -98,6 +98,7 @@ void listaAumenta(){
         listas[i].chave = NULL;
         listas[i].nElems = 0;
         listas[i].valores = NULL;
+        listas[i].reduced = NULL;
     }
 }
 
@@ -109,11 +110,12 @@ void listaInit(){
         listas[i].chave = NULL;
         listas[i].nElems = 0;
         listas[i].valores = NULL;
+        listas[i].reduced = NULL;
     }
     nListas = tamanhoInicial;
 }
 
-void listaPrint(){
+void listaPrintKeyValues(){
     Elem *elem;
     
     int i;
@@ -127,12 +129,31 @@ void listaPrint(){
     }
 }
 
+void listaPrintKeyReduced(){
+    int i;
+    //char numeroEmString[20];
+    for(i=0; i<nListas; i++){
+        if( listas[i].reduced == NULL )
+            break;
+            
+        //write(1, "---[i = ", 8);
+        //snprintf(numeroEmString, 20, "%d", i);
+        //write(1, numeroEmString, strlen(numeroEmString));
+        //write(1, "]-----------------------\n[chave] ", 33);
+        
+        write(1,listas[i].chave,strlen(listas[i].chave));
+        //write(1,"\n[valor] ", 9);
+        write(1," ", 1);
+        write(1,listas[i].reduced, strlen(listas[i].reduced));
+        write(1,"\n",1);
+    }
+}
+
 void listaDumpValues(int indice, int fd){
     Elem *elem;
     
     elem = listas[indice].valores;
     while( elem != NULL ){
-        //printf("    valor: %s\n", elem->valor);
         write(fd, elem->valor, strlen(elem->valor));
         write(fd, "\n", 1);
         elem = elem->proximo;
@@ -140,11 +161,31 @@ void listaDumpValues(int indice, int fd){
 }
 
 void listaReduced(int indice, char *reducedValue){
-    // copiar a string
-    listas[indice].reduced = (char*)myMalloc(sizeof(char) * (strlen(reducedValue)+1));
-    strcpy(listas[indice].reduced, reducedValue);
+    // se ainda não houver nenhum reduced, cria uma string e mete lá o valor
+    // se já houver valor reduced, acrescentar à string que já existe
+    
+    if( listas[indice].reduced == NULL ){
+        listas[indice].reduced = (char*)myMalloc(sizeof(char) * (strlen(reducedValue)+1));
+        strcpy(listas[indice].reduced, reducedValue);
+    }else{
+        // obter o tamanho da string
+        int comprimento = strlen(listas[indice].reduced);
+        int incremento = strlen(reducedValue)+1;
+        
+        //expandir a string reduced
+        listas[indice].reduced = myRealloc( listas[indice].reduced, comprimento + incremento );
+        
+        //arescentar coisas ao fim do valor reduced
+        strcpy(listas[indice].reduced + comprimento, reducedValue);
+    }
 }
 
-void listaCount(){
+int listaCount(){
+    // contar o numero de valores preenchidos do array do fim para o início (mais eficiente)
+    int i = nListas-1;
     
+    while( listas[i].chave == NULL )
+        i--;
+    
+    return i+1;
 }

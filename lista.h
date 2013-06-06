@@ -30,11 +30,13 @@ void listaAumenta();
 
 void listaInit();
 
-void listaPrint();
+void listaPrintKeyValues();
+
+void listaPrintKeyReduced();
 
 void listaDumpValues(int indice, int fd);
 
 void listaReduced(int indice, char *reducedValue);
 
-void listaCount();
+int listaCount();
 

@@ -16,7 +16,7 @@ void printErrorAndExit(const char* erro, const char* file, int line){
     snprintf(errorLineAsString, 10, "%d", line);
     
     write(2, errorLineAsString, 10);
-    write(2, ")\nA aplicaçao vai terminar.\n", 28);
+    write(2, ")\nA aplicaçao vai terminar.\n", 29);
     exit(EXIT_FAILURE);
 }
 

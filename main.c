@@ -8,12 +8,27 @@
 #include "erro.h"
 
 int main(int argc, char** argv) {
-    if(argc != 3){
-        fprintf(stderr, "A aplicação deve receber exactamente dois argumentos: map e reduce\n");
-        return (EXIT_FAILURE);
-    }
+    if(argc != 3)
+        printErrorAndExit("A aplicação deve receber exactamente dois argumentos: map e reduce", __FILE__, __LINE__);
     
-    printf("comando map: %s\ncomando reduce: %s\n", argv[1], argv[2]);
+    
+    MAXCOM = 50;
+    /**/
+    char* env;
+    env = getenv("MAXCOM");
+      
+    if( env == NULL )
+        printErrorAndExit("Variável de ambiente MAXCOM não está definida", __FILE__, __LINE__);
+    
+    MAXCOM = atoi(env);
+    
+    if( MAXCOM < 1 )
+        printErrorAndExit("MAXCOM tem de ser superior a 0.", __FILE__, __LINE__);
+    /**/
+    
+    gestor = myMalloc(sizeof(Gestor) * MAXCOM);
+    
+    //printf("comando map: %s\ncomando reduce: %s\n", argv[1], argv[2]);
     
     //assegurar que se um filho morrer chama a função filhoMorreu
     signal(SIGCHLD, filhoMorreu);

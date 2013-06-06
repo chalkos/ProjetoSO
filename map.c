@@ -59,13 +59,15 @@ int esperaPorPipeMap(){
     if(!WIFEXITED(resultado)){
         // terminou abruptamente
         printErrorAndExit("Uma execução do comando map terminou abruptamente.", __FILE__, __LINE__);
-    }
+    }/*else if( (resultado = WEXITSTATUS(resultado)) == EXIT_FAILURE ){
+        printErrorAndExit("Uma execução do comando map terminou sem sucesso.", __FILE__, __LINE__);
+    }*/
     
     bool encontrou = false;
     for(i=0; i<MAXCOM; i++){
-        if(pOut[i].pid == pid){
+        if(gestor[i].pid == pid){
             encontrou = true;
-            pOut[i].vivo = false;
+            gestor[i].vivo = false;
             break;
         }
     }
@@ -89,8 +91,8 @@ int map(char *comando){
     int indiceArgsBuffer = i;
     
     // utilizar o ficheiro de stdinDebug
-    int stdinDebugFD = open("stdinDebug", O_RDONLY); //abrir o ficheiro
-    dup2(stdinDebugFD, 0); //o stdin passa a ser esse ficheiro
+    //int stdinDebugFD = open("stdinDebug", O_RDONLY); //abrir o ficheiro
+    //dup2(stdinDebugFD, 0); //o stdin passa a ser esse ficheiro
     
     //criar uma cópia do stdin, para poder ler os dados do stdin 
     //à medida que vai sendo preciso (lazy)
@@ -102,8 +104,8 @@ int map(char *comando){
     char buffer[argBufferSize];
     
     for(i=0; i<MAXCOM; i++){
-        pOut[i].pid = -1;
-        pOut[i].vivo = false;
+        gestor[i].pid = -1;
+        gestor[i].vivo = false;
     }
     i=0;
     
@@ -116,18 +118,18 @@ int map(char *comando){
         if(!livre){
             i = esperaPorPipeMap();
             if(i == -1)
-                printErrorAndExit("Ocorreu um ECHILD n wait antes do tempo.", __FILE__, __LINE__);
+                printErrorAndExit("Ocorreu um ECHILD no wait antes do tempo.", __FILE__, __LINE__);
         }
         
         
-        if(pOut[i].vivo == false && pOut[i].pid > 0){
+        if(gestor[i].vivo == false && gestor[i].pid > 0){
             lerChaveValor(i);
-            close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
-            pOut[i].pid = -1;
+            close(gestor[i].pipeOut[0]); //fechar o que resta do pipe
+            gestor[i].pid = -1;
         }
           
         // criar um pipe na posição i
-        if( pipe(pOut[i].pipeOut) == -1 ){
+        if( pipe(gestor[i].pipeOut) == -1 ){
             if( errno == EMFILE)
                printWarning("Too many file descriptors in use by the process. Retrying in a while.", __FILE__, __LINE__);
             else if( errno == EMFILE)
@@ -135,11 +137,11 @@ int map(char *comando){
             
             sleep(1000);
         }
-        pOut[i].vivo = true;
+        gestor[i].vivo = true;
         
         
         // fazendo forks
-        while( (pOut[i].pid = fork()) == -1 ){
+        while( (gestor[i].pid = fork()) == -1 ){
             if( errno == EAGAIN )
                 printWarning("Não foi possível alocar memória para o filho ou o máximo de filhos permitido foi atingido. Tentando outra vez.", __FILE__, __LINE__);
             if( errno == ENOMEM)
@@ -147,28 +149,30 @@ int map(char *comando){
             
             sleep(1000);
         }
-        if( pOut[i].pid==0){
+        
+        
+        if( gestor[i].pid==0){
             // fechar a saida do pipe no filho
-            close(pOut[i].pipeOut[0]);
+            close(gestor[i].pipeOut[0]);
             // o stdout do filho passa a ser a entrada do pipe
-            dup2(pOut[i].pipeOut[1], 1);
+            dup2(gestor[i].pipeOut[1], 1);
             // execvp
             
             args[indiceArgsBuffer] = buffer;
             
             execvp(args[0], args);
             
-            exit(EXIT_FAILURE); //o comando deve terminar naturalmente e nao chegar aqui
+            exit(EXIT_FAILURE);
         }
         
-        //printf("criado pid %d\n", pOut[i].pid);
+        //printf("criado pid %d\n", gestor[i].pid);
         
         // fechar a entrada do pipe no pai
-        close(pOut[i].pipeOut[1]);
+        close(gestor[i].pipeOut[1]);
         
         livre = false;
         for(i=0; i<MAXCOM; i++){
-            if(pOut[i].vivo == false){
+            if(gestor[i].vivo == false){
                 livre = true;
                 break;
             }
@@ -177,12 +181,11 @@ int map(char *comando){
     
     while((i = esperaPorPipeMap()) != -1){
         lerChaveValor(i);
-        close(pOut[i].pipeOut[0]); //fechar o que resta do pipe
-        pOut[i].pid = -1; // sinalizar o pipe como terminado
+        close(gestor[i].pipeOut[0]); //fechar o que resta do pipe
+        gestor[i].pid = -1; // sinalizar o pipe como terminado
     }
     
-    //listaPrint();
-    
+    //listaPrintKeyValues(); exit(0);
 }
 
 int lerChaveValor(int pos){
@@ -195,7 +198,7 @@ int lerChaveValor(int pos){
     int lidos;
     int lidosTotal = 0;
     
-    while(lidos = read(pOut[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
+    while(lidos = read(gestor[pos].pipeOut[0], i, sizeof(char)*tamanhoInicial)){
         if(lidos < 0)
             lidos = 0; // para o lidosTotal não decrescer
         lidosTotal += lidos;
